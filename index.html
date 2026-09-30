@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRT Glitch Studio</title>
+<meta name="description" content="Студия CRT/глитч-эффекта на WebGL: подбор параметров, экспорт PNG, видео и пресетов, готовый компонент для сайта.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="src/studio.css">
+<script type="module" src="src/crt-glitch.js"></script>
+<script type="module" src="src/studio.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>CRT-глитч <em>студия</em></h1>
+    <p class="sub">Загрузите картинку или видео, подберите эффект, выгрузите PNG, ролик или пресет. Превью работает на том же компоненте, что пойдёт на сайт.</p>
+  </header>
+
+  <div class="grid">
+    <div class="left">
+      <div class="bar" role="group" aria-label="Формат кадра">
+        <button class="chip" data-ar="16/9" aria-pressed="true" type="button">16:9 Hero</button>
+        <button class="chip" data-ar="4/5" aria-pressed="false" type="button">4:5 пост</button>
+        <button class="chip" data-ar="1/1" aria-pressed="false" type="button">1:1</button>
+        <button class="chip" data-ar="9/16" aria-pressed="false" type="button">9:16 сторис</button>
+      </div>
+      <div class="frame"><div id="stage"></div></div>
+      <div class="row">
+        <button class="btn" id="play" type="button">▶ Сыграть переход</button>
+        <label class="btn ghost file" for="file">Загрузить картинку / видео<input type="file" id="file" accept="image/*,video/mp4,video/webm,video/quicktime"></label>
+        <span class="hint" id="srcName">Пример: сгенерированная обложка</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Пульт</h2>
+      <div class="bar" role="group" aria-label="Пресеты">
+        <button class="chip" data-preset="ausify" type="button">Как у Ausify</button>
+        <button class="chip" data-preset="subtle" type="button">Тонко</button>
+        <button class="chip" data-preset="vhs" type="button">VHS</button>
+        <button class="chip" data-preset="tube" type="button">Кинескоп</button>
+      </div>
+      <div class="ctrl"><label for="tear"><span>Рывок при переходе</span><span id="tearV"></span></label>
+        <input id="tear" type="range" min="0" max="0.3" step="0.005"><small>Насколько рвутся строки в начале перехода.</small></div>
+      <div class="ctrl"><label for="duration"><span>Длительность перехода, мс</span><span id="durationV"></span></label>
+        <input id="duration" type="range" min="200" max="3000" step="50"></div>
+      <div class="ctrl"><label for="jitter"><span>Дрожание строк</span><span id="jitterV"></span></label>
+        <input id="jitter" type="range" min="0" max="0.02" step="0.00005"><small>Постоянно, даже в спокойном кадре.</small></div>
+      <div class="ctrl"><label for="ca"><span>Хроматическая аберрация</span><span id="caV"></span></label>
+        <input id="ca" type="range" min="0" max="0.02" step="0.0001"></div>
+      <div class="ctrl"><label for="idle"><span>Случайные микро-глитчи</span><span id="idleV"></span></label>
+        <input id="idle" type="range" min="0" max="1" step="0.05"><small>0 — выключены. Короткие срывы кадра раз в несколько секунд.</small></div>
+      <div class="ctrl"><label for="pixel"><span>Размер RGB-маски</span><span id="pixelV"></span></label>
+        <input id="pixel" type="range" min="1" max="8" step="1"></div>
+      <label class="check"><input type="checkbox" id="mask"> RGB-маска и строки развёртки</label>
+      <label class="check"><input type="checkbox" id="fade"> Появление из чёрного</label>
+      <div class="row"><label for="trigger">Запуск на сайте</label>
+        <select id="trigger">
+          <option value="visible">когда появляется на экране</option>
+          <option value="load">сразу при загрузке</option>
+          <option value="hover">при наведении</option>
+          <option value="none">только из кода</option>
+        </select></div>
+
+      <hr class="sep">
+      <h2>Выгрузка</h2>
+      <div class="row"><label for="res">Размер</label>
+        <select id="res">
+          <option value="1080">1080 px по короткой стороне</option>
+          <option value="1440">1440 px</option>
+          <option value="720">720 px</option>
+          <option value="screen">как на экране</option>
+        </select></div>
+      <div class="row">
+        <button class="btn y" id="png" type="button">PNG кадра</button>
+        <button class="btn y" id="rec" type="button">Ролик перехода</button>
+        <button class="btn ghost" id="json" type="button">Пресет .json</button>
+      </div>
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <section class="code">
+    <h2>Подключение к Astro</h2>
+    <div class="steps">
+      <div class="step"><b>1.</b> Скопируйте <code>crt-glitch.js</code> и <code>CrtGlitch.astro</code> в <code>src/components/crt-glitch/</code>. Файлы лежат в папках <code>src/</code> и <code>integrations/astro/</code> этого репозитория.</div>
+      <div class="step"><b>2.</b> Картинку положите в <code>src/assets/</code> или <code>public/</code>. Видео должно лежать на своём домене, иначе браузер не отдаст его в WebGL.</div>
+      <div class="step"><b>3.</b> Вставьте код ниже в страницу. Параметры подставляются из пульта автоматически.</div>
+    </div>
+    <div class="tabs" role="group" aria-label="Вариант кода">
+      <button class="chip" data-code="astro" aria-pressed="true" type="button">Astro-компонент</button>
+      <button class="chip" data-code="html" aria-pressed="false" type="button">Чистый HTML</button>
+      <button class="chip" data-code="json" aria-pressed="false" type="button">Пресет</button>
+      <button class="btn ghost" id="copy" type="button">Скопировать</button>
+    </div>
+    <pre id="snippet"></pre>
+  </section>
+</div>
+</body>
+</html>

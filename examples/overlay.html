@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>crt-overlay — пример на всю страницу</title>
+<style>
+  body { margin: 0; background: #0b0a0c; color: #eee; font: 15px/1.6 ui-monospace, Menlo, monospace; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 80px; display: grid; gap: 20px; }
+  nav { display: flex; gap: 18px; }
+  a { color: #ff8fc7; }
+  h1 { font: 400 clamp(36px, 7vw, 72px)/1 Georgia, serif; margin: 24px 0 0; color: #ff8fc7; }
+  img { width: 100%; display: block; }
+</style>
+</head>
+<body>
+<main>
+  <nav><a href="overlay.html">Главная</a><a href="overlay.html?p=2">Вторая страница</a><a href="#bottom">Якорь (без глитча)</a></nav>
+  <h1>Обычная страница под CRT-накладкой</h1>
+  <p>Текст можно выделить, ссылки работают. При загрузке страница появляется с глитчем, а при переходе по ссылкам меню кадр рвётся и гаснет.</p>
+  <img src="https://picsum.photos/id/1062/1600/900" alt="Пример картинки">
+  <p id="bottom">Конец страницы.</p>
+</main>
+
+<crt-overlay preset='{"tear":40,"ca":4,"duration":900,"fade":true,"scan":0.25,"mask":0,"pixel":2,"vignette":0.35,"flicker":0.1,"idle":0}' links="true"></crt-overlay>
+<script type="module" src="../src/crt-overlay.js"></script>
+</body>
+</html>

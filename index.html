@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="src/studio.css">
 <script type="module" src="src/crt-glitch.js"></script>
+<script type="module" src="src/crt-overlay.js"></script>
 <script type="module" src="src/studio.js"></script>
 </head>
 <body>
@@ -18,20 +19,28 @@
     <p class="sub">Загрузите картинку или видео, подберите эффект, выгрузите PNG, ролик или пресет. Превью работает на том же компоненте, что пойдёт на сайт.</p>
   </header>
 
+  <div class="bar mode" role="group" aria-label="Режим">
+    <button class="chip" data-mode="media" aria-pressed="true" type="button">Картинка / видео</button>
+    <button class="chip" data-mode="page" aria-pressed="false" type="button">Вся страница</button>
+    <span class="hint" id="modeHint">Эффект на одну картинку или видео: WebGL, полный набор искажений.</span>
+  </div>
+
   <div class="grid">
     <div class="left">
-      <div class="bar" role="group" aria-label="Формат кадра">
-        <button class="chip" data-ar="16/9" aria-pressed="true" type="button">16:9 Hero</button>
-        <button class="chip" data-ar="4/5" aria-pressed="false" type="button">4:5 пост</button>
-        <button class="chip" data-ar="1/1" aria-pressed="false" type="button">1:1</button>
-        <button class="chip" data-ar="9/16" aria-pressed="false" type="button">9:16 сторис</button>
+      <div class="toolbar">
+        <div class="bar" id="arBar" role="group" aria-label="Формат кадра">
+          <button class="chip" data-ar="16/9" aria-pressed="true" type="button">16:9 Hero</button>
+          <button class="chip" data-ar="4/5" aria-pressed="false" type="button">4:5 пост</button>
+          <button class="chip" data-ar="1/1" aria-pressed="false" type="button">1:1</button>
+          <button class="chip" data-ar="9/16" aria-pressed="false" type="button">9:16 сторис</button>
+        </div>
+        <div class="row tools">
+          <button class="btn" id="play" type="button">▶ Сыграть переход</button>
+          <label class="btn ghost file" id="fileBtn" for="file">Загрузить картинку / видео<input type="file" id="file" accept="image/*,video/mp4,video/webm,video/quicktime"></label>
+          <span class="hint" id="srcName">Пример: сгенерированная обложка</span>
+        </div>
       </div>
       <div class="frame"><div id="stage"></div></div>
-      <div class="row">
-        <button class="btn" id="play" type="button">▶ Сыграть переход</button>
-        <label class="btn ghost file" for="file">Загрузить картинку / видео<input type="file" id="file" accept="image/*,video/mp4,video/webm,video/quicktime"></label>
-        <span class="hint" id="srcName">Пример: сгенерированная обложка</span>
-      </div>
     </div>
 
     <div class="panel">
@@ -42,21 +51,50 @@
         <button class="chip" data-preset="vhs" type="button">VHS</button>
         <button class="chip" data-preset="tube" type="button">Кинескоп</button>
       </div>
+      <div id="mediaCtrls" class="ctrls">
+      <h3>Появление</h3>
       <div class="ctrl"><label for="tear"><span>Рывок при переходе</span><span id="tearV"></span></label>
-        <input id="tear" type="range" min="0" max="0.3" step="0.005"><small>Насколько рвутся строки в начале перехода.</small></div>
+        <input id="tear" type="range" min="0" max="0.3" step="0.005"></div>
       <div class="ctrl"><label for="duration"><span>Длительность перехода, мс</span><span id="durationV"></span></label>
         <input id="duration" type="range" min="200" max="3000" step="50"></div>
+      <label class="check"><input type="checkbox" id="fade"> Появление из чёрного</label>
+      <h3>Постоянно</h3>
       <div class="ctrl"><label for="jitter"><span>Дрожание строк</span><span id="jitterV"></span></label>
-        <input id="jitter" type="range" min="0" max="0.02" step="0.00005"><small>Постоянно, даже в спокойном кадре.</small></div>
+        <input id="jitter" type="range" min="0" max="0.02" step="0.00005"></div>
       <div class="ctrl"><label for="ca"><span>Хроматическая аберрация</span><span id="caV"></span></label>
         <input id="ca" type="range" min="0" max="0.02" step="0.0001"></div>
       <div class="ctrl"><label for="idle"><span>Случайные микро-глитчи</span><span id="idleV"></span></label>
-        <input id="idle" type="range" min="0" max="1" step="0.05"><small>0 — выключены. Короткие срывы кадра раз в несколько секунд.</small></div>
+        <input id="idle" type="range" min="0" max="1" step="0.05"></div>
       <div class="ctrl"><label for="pixel"><span>Размер RGB-маски</span><span id="pixelV"></span></label>
         <input id="pixel" type="range" min="1" max="8" step="1"></div>
       <label class="check"><input type="checkbox" id="mask"> RGB-маска и строки развёртки</label>
-      <label class="check"><input type="checkbox" id="fade"> Появление из чёрного</label>
-      <div class="row"><label for="trigger">Запуск на сайте</label>
+      </div>
+
+      <div id="pageCtrls" class="ctrls" hidden>
+      <h3>Глитч: загрузка и переходы</h3>
+      <div class="ctrl"><label for="o-tear"><span>Рывок строк, px</span><span id="o-tearV"></span></label>
+        <input id="o-tear" type="range" min="0" max="160" step="1"></div>
+      <div class="ctrl"><label for="o-ca"><span>Разъезд цветов, px</span><span id="o-caV"></span></label>
+        <input id="o-ca" type="range" min="0" max="20" step="0.5"></div>
+      <div class="ctrl"><label for="o-duration"><span>Длительность глитча, мс</span><span id="o-durationV"></span></label>
+        <input id="o-duration" type="range" min="200" max="3000" step="50"></div>
+      <div class="ctrl"><label for="o-idle"><span>Случайные микро-глитчи</span><span id="o-idleV"></span></label>
+        <input id="o-idle" type="range" min="0" max="1" step="0.05"></div>
+      <label class="check"><input type="checkbox" id="o-fade"> Появление из чёрного</label>
+      <label class="check"><input type="checkbox" id="o-links"> Глитч при переходе по ссылкам</label>
+      <h3>Накладка: видна всё время</h3>
+      <div class="ctrl"><label for="o-scan"><span>Строки развёртки</span><span id="o-scanV"></span></label>
+        <input id="o-scan" type="range" min="0" max="1" step="0.05"></div>
+      <div class="ctrl"><label for="o-mask"><span>RGB-маска</span><span id="o-maskV"></span></label>
+        <input id="o-mask" type="range" min="0" max="1" step="0.05"></div>
+      <div class="ctrl"><label for="o-pixel"><span>Шаг строк и маски</span><span id="o-pixelV"></span></label>
+        <input id="o-pixel" type="range" min="1" max="8" step="1"></div>
+      <div class="ctrl"><label for="o-vignette"><span>Затемнение по краям</span><span id="o-vignetteV"></span></label>
+        <input id="o-vignette" type="range" min="0" max="1" step="0.05"></div>
+      <div class="ctrl"><label for="o-flicker"><span>Мерцание</span><span id="o-flickerV"></span></label>
+        <input id="o-flicker" type="range" min="0" max="1" step="0.05"></div>
+      </div>
+      <div class="row" id="triggerRow"><label for="trigger">Запуск на сайте</label>
         <select id="trigger">
           <option value="visible">когда появляется на экране</option>
           <option value="load">сразу при загрузке</option>
@@ -66,6 +104,7 @@
 
       <hr class="sep">
       <h2>Выгрузка</h2>
+      <div id="mediaExport" class="ctrls">
       <div class="row"><label for="res">Размер</label>
         <select id="res">
           <option value="1080">1080 px по короткой стороне</option>
@@ -76,18 +115,24 @@
       <div class="row">
         <button class="btn y" id="png" type="button">PNG кадра</button>
         <button class="btn y" id="rec" type="button">Ролик перехода</button>
-        <button class="btn ghost" id="json" type="button">Пресет .json</button>
       </div>
+      </div>
+      <div class="row"><button class="btn ghost" id="json" type="button">Пресет .json</button></div>
       <div class="status" id="status" role="status" aria-live="polite"></div>
     </div>
   </div>
 
   <section class="code">
-    <h2>Подключение к Astro</h2>
-    <div class="steps">
+    <h2 id="codeTitle">Подключение к Astro</h2>
+    <div class="steps" id="mediaSteps">
       <div class="step"><b>1.</b> Скопируйте <code>crt-glitch.js</code> и <code>CrtGlitch.astro</code> в <code>src/components/crt-glitch/</code>. Файлы лежат в папках <code>src/</code> и <code>integrations/astro/</code> этого репозитория.</div>
       <div class="step"><b>2.</b> Картинку положите в <code>src/assets/</code> или <code>public/</code>. Видео должно лежать на своём домене, иначе браузер не отдаст его в WebGL.</div>
       <div class="step"><b>3.</b> Вставьте код ниже в страницу. Параметры подставляются из пульта автоматически.</div>
+    </div>
+    <div class="steps" id="pageSteps" hidden>
+      <div class="step"><b>1.</b> Скопируйте <code>crt-overlay.js</code> из папки <code>src/</code> в свой проект.</div>
+      <div class="step"><b>2.</b> Вставьте код ниже в общий шаблон сайта (layout) перед <code>&lt;/body&gt;</code>. Эффект появится на всех страницах.</div>
+      <div class="step"><b>3.</b> Картинки, текст и кнопки остаются обычным HTML: текст выделяется, ссылки работают, поисковики всё видят.</div>
     </div>
     <div class="tabs" role="group" aria-label="Вариант кода">
       <button class="chip" data-code="astro" aria-pressed="true" type="button">Astro-компонент</button>

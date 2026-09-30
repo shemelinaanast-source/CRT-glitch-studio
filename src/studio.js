@@ -1,4 +1,5 @@
 import { DEFAULTS } from './crt-glitch.js';
+import { OVERLAY_DEFAULTS } from './crt-overlay.js';
 
 const PRESETS = {
   ausify: { jitter:0.00065, ca:0.0015, tear:0.05, mask:false, pixel:1, duration:1100, fade:true, idle:0 },
@@ -6,9 +7,18 @@ const PRESETS = {
   vhs:    { jitter:0.004, ca:0.006, tear:0.14, mask:false, pixel:1, duration:1500, fade:true, idle:0.5 },
   tube:   { jitter:0.0012, ca:0.0035, tear:0.06, mask:true, pixel:2, duration:1200, fade:true, idle:0.2 },
 };
+// те же пресеты для режима «Вся страница»: сдвиги в px, накладка 0…1
+const PAGE_PRESETS = {
+  ausify: { tear:40, ca:4, duration:900, fade:true, scan:0.25, mask:0, pixel:2, vignette:0.35, flicker:0.1, idle:0 },
+  subtle: { tear:18, ca:2, duration:700, fade:true, scan:0.15, mask:0, pixel:2, vignette:0.2, flicker:0, idle:0 },
+  vhs:    { tear:90, ca:9, duration:1400, fade:true, scan:0.35, mask:0, pixel:3, vignette:0.45, flicker:0.45, idle:0.5 },
+  tube:   { tear:45, ca:5, duration:1100, fade:true, scan:0.45, mask:0.5, pixel:2, vignette:0.55, flicker:0.25, idle:0.2 },
+};
 const state = { ...DEFAULTS, ...PRESETS.ausify, trigger:'visible', fit:'cover' };
+const pageState = { ...OVERLAY_DEFAULTS, ...PAGE_PRESETS.ausify, links:true };
 const $ = id => document.getElementById(id);
 const stage = $('stage');
+let mode = 'media', ov = null;
 let el = null, srcInfo = { kind:'img', url:null, name:'hero.jpg' }, ar = '16/9', codeMode = 'astro';
 
 // ---------- пример-обложка ----------
@@ -27,7 +37,25 @@ async function sampleImage(){
 }
 
 // ---------- сцена ----------
+const DEMO = `<div class="demo">
+  <nav><b>RADIO//03</b><span><a href="#">Эфир</a><a href="#">Архив</a><a href="#">О нас</a></span></nav>
+  <h3>Ваш сайт — <em>в эфире</em></h3>
+  <p>Обычная HTML-страница: текст выделяется, кнопки нажимаются. Нажмите на пункт меню, чтобы увидеть глитч перехода.</p>
+  <div class="demo-row"><a class="demo-btn" href="#">Слушать</a><a class="demo-btn ghost" href="#">Расписание</a></div>
+  <div class="demo-cards"><div><i></i><span>CH 01 · утро</span></div><div><i></i><span>CH 02 · ночь</span></div><div><i></i><span>CH 03 · live</span></div></div>
+</div>`;
+function mountPage(){
+  stage.style.aspectRatio = '16/10';
+  stage.innerHTML = DEMO;
+  ov = document.createElement('crt-overlay');
+  ov.setAttribute('trigger','none');
+  stage.appendChild(ov);
+  ov.set({ ...pageState });
+  setTimeout(()=>ov.play(), 150);
+}
 function mount(){
+  el = null; ov = null;
+  if(mode==='page') return mountPage();
   stage.style.aspectRatio = ar;
   stage.innerHTML = '';
   el = document.createElement('crt-glitch');
@@ -42,9 +70,10 @@ function mount(){
   if(srcInfo.kind==='video') media.play?.().catch(()=>{});
   setTimeout(()=>el.play(), 150);
 }
-function fitStage(){ // не выше 70% окна
-  const [a,b] = ar.split('/').map(Number);
-  const maxH = Math.max(240, innerHeight*0.7), w = stage.parentElement.clientWidth - 28;
+function fitStage(){ // вся ширина колонки, но кадр целиком влезает в окно
+  const [a,b] = (mode==='page' ? '16/10' : ar).split('/').map(Number);
+  const top = stage.parentElement.getBoundingClientRect().top + scrollY; // превью целиком влезает в первый экран
+  const maxH = Math.max(260, innerHeight - top - 28), w = stage.parentElement.clientWidth - 18;
   stage.style.width = Math.min(w, maxH*a/b) + 'px';
 }
 addEventListener('resize', fitStage);
@@ -62,12 +91,41 @@ $('duration').addEventListener('change', ()=>el?.play());
 $('mask').addEventListener('change', e=>{ state.mask=e.target.checked; el?.set({mask:state.mask}); renderSnippet(); });
 $('fade').addEventListener('change', e=>{ state.fade=e.target.checked; el?.set({fade:state.fade}); renderSnippet(); el?.play(); });
 $('trigger').addEventListener('change', e=>{ state.trigger=e.target.value; renderSnippet(); });
+const ofmt = { tear:v=>v+' px', ca:v=>v+' px', duration:v=>String(v), idle:v=>v.toFixed(2), scan:v=>v.toFixed(2), mask:v=>v.toFixed(2), pixel:v=>v+' px', vignette:v=>v.toFixed(2), flicker:v=>v.toFixed(2) };
+function syncPageUI(){
+  for(const k of Object.keys(ofmt)){ $('o-'+k).value = pageState[k]; $('o-'+k+'V').textContent = ofmt[k](pageState[k]); }
+  $('o-fade').checked = pageState.fade; $('o-links').checked = pageState.links;
+  renderSnippet();
+}
+for(const k of Object.keys(ofmt)) $('o-'+k).addEventListener('input', e=>{ pageState[k]=parseFloat(e.target.value); $('o-'+k+'V').textContent=ofmt[k](pageState[k]); ov?.set({[k]:pageState[k]}); renderSnippet(); });
+for(const k of ['tear','ca','duration']) $('o-'+k).addEventListener('change', ()=>ov?.play());
+for(const k of ['fade','links']) $('o-'+k).addEventListener('change', e=>{ pageState[k]=e.target.checked; ov?.set({[k]:pageState[k]}); renderSnippet(); if(k==='fade') ov?.play(); });
 document.querySelectorAll('[data-preset]').forEach(b=>b.addEventListener('click',()=>{
+  if(mode==='page'){ Object.assign(pageState, PAGE_PRESETS[b.dataset.preset]); ov?.set({ ...pageState }); syncPageUI(); ov?.play(); return; }
   Object.assign(state, PRESETS[b.dataset.preset]); el?.set({ ...state, trigger:'none' }); syncUI(); el?.play(); }));
+
+// ---------- режим ----------
+const HINTS = {
+  media: 'Эффект на одну картинку или видео: WebGL, полный набор искажений.',
+  page: 'Накладка на весь сайт: строки, маска, мерцание и глитч при загрузке и переходах. Сайт остаётся обычным HTML.',
+};
+function setMode(m){
+  mode = m;
+  document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed', String(x.dataset.mode===m)));
+  const page = m==='page';
+  for(const id of ['arBar','fileBtn','srcName','mediaCtrls','triggerRow','mediaExport','mediaSteps']) $(id).hidden = page;
+  for(const id of ['pageCtrls','pageSteps']) $(id).hidden = !page;
+  $('modeHint').textContent = HINTS[m];
+  $('play').textContent = page ? '▶ Сыграть глитч' : '▶ Сыграть переход';
+  $('codeTitle').textContent = page ? 'Подключение к сайту' : 'Подключение к Astro';
+  say('');
+  fitStage(); mount(); renderSnippet();
+}
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.mode!==mode) setMode(b.dataset.mode); }));
 document.querySelectorAll('[data-ar]').forEach(b=>b.addEventListener('click',()=>{
   ar=b.dataset.ar; document.querySelectorAll('[data-ar]').forEach(x=>x.setAttribute('aria-pressed', String(x===b)));
   stage.style.aspectRatio = ar; fitStage(); el?.play(); }));
-$('play').addEventListener('click', ()=>el?.play());
+$('play').addEventListener('click', ()=> mode==='page' ? ov?.play() : el?.play());
 $('file').addEventListener('change', e=>{
   const f=e.target.files[0]; if(!f) return;
   if(srcInfo.url && srcInfo.url.startsWith('blob:')) URL.revokeObjectURL(srcInfo.url);
@@ -77,7 +135,30 @@ $('file').addEventListener('change', e=>{
 
 // ---------- код ----------
 const cleanPreset = () => { const p={}; for(const k of ['jitter','ca','tear','mask','pixel','duration','fade','idle']) p[k]=state[k]; return p; };
+const cleanPagePreset = () => { const p={}; for(const k of ['tear','ca','duration','fade','scan','mask','pixel','vignette','flicker','idle']) p[k]=pageState[k]; return p; };
+function renderPageSnippet(){
+  const js = JSON.stringify(cleanPagePreset()), links = pageState.links ? ' links="true"' : '';
+  let s;
+  if(codeMode==='astro') s =
+`---
+// src/layouts/Layout.astro — общий шаблон всех страниц
+---
+<html lang="ru">
+  <body>
+    <slot />
+    <crt-overlay preset='${js}'${links}></crt-overlay>
+    <script>import '../components/crt-glitch/crt-overlay.js';</script>
+  </body>
+</html>`;
+  else if(codeMode==='html') s =
+`<!-- перед </body> на каждой странице (или в общем шаблоне) -->
+<crt-overlay preset='${js}'${links}></crt-overlay>
+<script type="module" src="/js/crt-overlay.js"><\/script>`;
+  else s = JSON.stringify({ ...cleanPagePreset(), links: pageState.links }, null, 2);
+  $('snippet').textContent = s;
+}
 function renderSnippet(){
+  if(mode==='page') return renderPageSnippet();
   const p = cleanPreset(), js = JSON.stringify(p), isV = srcInfo.kind==='video';
   const file = srcInfo.name.replace(/[^\w.\-]+/g,'-');
   const props = Object.entries(p).map(([k,v])=>`${k}: ${v}`).join(', ');
@@ -136,7 +217,9 @@ $('png').addEventListener('click', async ()=>{
   el.renderSize = null; el.set({});
   save(`${base()}-crt.png`, blob);
 });
-$('json').addEventListener('click', ()=> save('crt-preset.json', JSON.stringify({ ...cleanPreset(), trigger: state.trigger }, null, 2)));
+$('json').addEventListener('click', ()=> mode==='page'
+  ? save('crt-overlay-preset.json', JSON.stringify({ ...cleanPagePreset(), links: pageState.links }, null, 2))
+  : save('crt-preset.json', JSON.stringify({ ...cleanPreset(), trigger: state.trigger }, null, 2)));
 
 $('rec').addEventListener('click', async ()=>{
   if(typeof MediaRecorder==='undefined' || !el.canvas.captureStream){ say('Этот браузер не умеет записывать видео с холста', true); return; }
@@ -160,4 +243,4 @@ $('rec').addEventListener('click', async ()=>{
 
 // ---------- старт ----------
 srcInfo.url = await sampleImage();
-syncUI(); fitStage(); mount();
+syncUI(); syncPageUI(); fitStage(); mount();

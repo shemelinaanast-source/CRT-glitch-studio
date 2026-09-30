@@ -19,6 +19,7 @@ const pageState = { ...OVERLAY_DEFAULTS, ...PAGE_PRESETS.ausify, links:true };
 const $ = id => document.getElementById(id);
 const stage = $('stage');
 let mode = 'media', ov = null;
+let sampleUrl = null;
 let el = null, srcInfo = { kind:'img', url:null, name:'hero.jpg' }, ar = '16/9', codeMode = 'astro';
 
 // ---------- пример-обложка ----------
@@ -115,6 +116,7 @@ function setMode(m){
   const page = m==='page';
   for(const id of ['arBar','fileBtn','srcName','mediaCtrls','triggerRow','mediaExport','mediaSteps']) $(id).hidden = page;
   for(const id of ['pageCtrls','pageSteps']) $(id).hidden = !page;
+  $('resetSrc').hidden = page || srcInfo.url === sampleUrl;
   $('modeHint').textContent = HINTS[m];
   $('play').textContent = page ? '▶ Сыграть глитч' : '▶ Сыграть переход';
   $('codeTitle').textContent = page ? 'Подключение к сайту' : 'Подключение к Astro';
@@ -130,7 +132,14 @@ $('file').addEventListener('change', e=>{
   const f=e.target.files[0]; if(!f) return;
   if(srcInfo.url && srcInfo.url.startsWith('blob:')) URL.revokeObjectURL(srcInfo.url);
   srcInfo = { kind: f.type.startsWith('video')?'video':'img', url: URL.createObjectURL(f), name: f.name };
-  $('srcName').textContent = f.name; mount(); renderSnippet();
+  $('srcName').textContent = f.name; $('resetSrc').hidden = false; mount(); renderSnippet();
+});
+$('resetSrc').addEventListener('click', ()=>{
+  if(srcInfo.url?.startsWith('blob:')) URL.revokeObjectURL(srcInfo.url);
+  srcInfo = { kind:'img', url:sampleUrl, name:'hero.jpg' };
+  $('file').value = ''; // чтобы тот же файл можно было загрузить снова
+  $('srcName').textContent = 'Пример: сгенерированная обложка'; $('resetSrc').hidden = true;
+  mount(); renderSnippet(); $('play').focus();
 });
 
 // ---------- код ----------
@@ -242,5 +251,5 @@ $('rec').addEventListener('click', async ()=>{
 });
 
 // ---------- старт ----------
-srcInfo.url = await sampleImage();
+srcInfo.url = sampleUrl = await sampleImage();
 syncUI(); syncPageUI(); fitStage(); mount();
